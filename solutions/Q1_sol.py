@@ -99,4 +99,6 @@ y, y_ = tf.unique(x)
 
 x = tf.random_uniform([300])
 y = tf.random_uniform([300])
-out = tf.cond(tf.)
+residual = tf.abs(x - y)
+delta = 1.0
+out = tf.select(tf.less(x, delta), 0.5 * tf.square(residual), delta * residual - 0.5 * tf.square(delta))
