@@ -1,3 +1,7 @@
+# -*- coding: utf-8 -*-
+
+from __future__ import print_function
+
 import time
 import numpy as np
 import tensorflow as tf
@@ -16,31 +20,39 @@ X = tf.placeholder(tf.float32, [None, 784])
 Y_ = tf.placeholder(tf.float32, [None, 10])
 
 # Variables
-W = tf.Variable(tf.random_normal(shape=[784, 10], stddev=0.01), name="weigths")
-b = tf.Variable(tf.zeros([1,10]), name="bias")
+W = tf.Variable(tf.random_normal(shape=[784, 10], stddev=0.01), name="Weigths")
+b = tf.Variable(tf.zeros([1,10]), name="Bias")
 
 # The function
 Y = tf.nn.softmax(tf.add(tf.matmul(X,W), b))
 
 # Loss function
-loss = tf.reduce_mean(entropy)
+entropy = tf.nn.softmax_cross_entropy_with_logits(labels=Y_, logits=Y)
+loss = tf.reduce_mean(entropy) # computes the mean over examples in the batch
 
 # Training (minimizing loss)
 optimizer = tf.train.AdamOptimizer(learning_rate).minimize(loss)
+
+acc = tf.equal(tf.argmax(Y_, 1), tf.argmax(Y, 1))
+acc = tf.reduce_mean(tf.cast(acc, tf.float32))
+
+tf.summary.scalar('loss', loss)
+tf.summary.scalar('accuracy', acc)
+merged_summary = tf.summary.merge_all()
 
 init = tf.global_variables_initializer()
 
 with tf.Session() as sess:
 	sess.run(init)
-	n_batches = int(MNIST.train.num_examples/batch_size)
-	for i in range(n_epochs):
-		for _ in range(n_batches):
+	writer = tf.summary.FileWriter("./graphs", sess.graph)
+	pos = 1
+	for epoch in range(n_epochs):
+		avg_loss = 0;
+		n_batches = int(MNIST.train.num_examples/batch_size) 
+		for i in range(n_batches):
 			X_batch, Y_batch = MNIST.train.next_batch(batch_size)
-			sess.run([optimizer, loss], feed_dict={X: X_batch, Y_: Y_batch})
-
-	correct_prediction = tf.equal(tf.argmax(Y,1), tf.argmax(Y_,1))
-	accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-	print(sess.run(accuracy, feed_dict={X: MNIST.test.images, Y_: MNIST.test.labels}))
-	writer = tf.summary.FileWriter('./graphs', sess.graph)
-
-writer.close()
+			_, l, summary = sess.run([optimizer, loss, merged_summary], feed_dict={X: X_batch, Y_: Y_batch})
+			writer.add_summary(summary, pos)
+			avg_loss = l / n_batches
+		print('Epoch :', epoch, 'AvgLoss =', avg_loss)
+	print ("Accuracy:", acc.eval(feed_dict={X: MNIST.test.images, Y_: MNIST.test.labels}))
